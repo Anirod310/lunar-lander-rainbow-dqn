@@ -19,26 +19,26 @@ This time, the paper I studied to understand how this algorithm is implemented w
 To build the Rainbow DQN, we combine six independent extensions of the standard DQN to create a state-of-the-art agent. Here is the mathematical intuition and the core formula behind each component:
 
 #### 1. Double DQN (DDQN)
-Standard DQN suffers from an overestimation bias because the same network is used to select and evaluate the best next action. DDQN decouples this process by using the main network ($\theta$) to select the action, and the target network ($\bar{\theta}$) to evaluate its value.
+Standard DQN suffers from an overestimation bias because the same network is used to select and evaluate the best next action. DDQN decouples this process by using the main network ($\theta$) to select the action, and the target network ($\bar{\theta}$) to evaluate its value : 
 $$Y_t^{DoubleQ} = R_{t+1} + \gamma q_{\bar{\theta}}(S_{t+1}, \arg\max_{a'} q_\theta(S_{t+1}, a'))$$
 
 #### 2. Prioritized Experience Replay (PER)
-Instead of sampling transitions uniformly at random from the Replay Buffer, PER samples them based on the magnitude of their error (the Temporal Difference error, or KL divergence in a distributional context). This forces the agent to learn more frequently from unexpected outcomes where it made the biggest mistakes.
+Instead of sampling transitions uniformly at random from the Replay Buffer as we did before, PER samples them based on the magnitude of their error (the Temporal Difference error, or KL divergence in a distributional context (that we'll apply later)). This forces the agent to learn more frequently from unexpected outcomes where it made the biggest mistakes : 
 $$p_i \propto |\delta_i|^\alpha$$
 *(Where $p_i$ is the priority of the transition $i$, $\delta_i$ is the error, and $\alpha$ determines how much prioritization is used).*
 
 #### 3. Dueling Networks
-This architecture modifies the internal structure of the neural network. Instead of directly predicting the Q-values, the network splits into two separate streams: one estimating the global State Value $V(S)$ and the other estimating the Advantage $A(S, A)$ of each specific action. They are aggregated at the final output layer to compute the Q-values.
+This architecture modifies the internal structure of the neural network. Instead of directly predicting the Q-values, the network splits into two separate streams: one estimating the global State Value $V(S)$ and the other estimating the Advantage $A(S, A)$ of each specific action. They are combined at the final output layer to compute the Q-values : 
 $$Q(S, A) = V(S) + \left( A(S, A) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(S, a') \right)$$
 
 #### 4. Multi-step Learning (n-step returns)
-Instead of computing the error using only the immediate single next step, the agent looks $n$ steps ahead (e.g., $n=3$) to accumulate the rewards before bootstrapping with the target network. This propagates the reward signals much faster through the network.
+Instead of computing the error using only the immediate single next step, the agent looks $n$ steps ahead (we used $n=3$ because it proved to be well-balanced.) to accumulate the rewards before bootstrapping with the target network. This propagates the reward signals much faster through the network : 
 $$R_t^{(n)} = \sum_{k=0}^{n-1} \gamma^k R_{t+k+1} + \gamma^n \max_{a'} q_{\bar{\theta}}(S_{t+n}, a')$$
 
 #### 5. Distributional RL (Categorical DQN / C51)
-Instead of predicting a single expected average score for an action, the network predicts a categorical probability distribution of possible returns across a fixed set of atoms (e.g., 51 buckets). The loss function becomes the Cross-Entropy (or KL Divergence) between the predicted distribution $\hat{Z}$ and the target distribution $Z$ projected via an operator $\Phi$.
+Instead of predicting a single expected average score for an action, the network predicts a categorical probability distribution of possible returns across a fixed set of atoms (51 buckets in the paper). The loss function becomes the Cross-Entropy (or KL Divergence) between the predicted distribution $\hat{Z}$ and the target distribution $Z$ projected via an operator $\Phi$ (which allows all the data to fits in a bucket) : 
 $$\text{Loss} = D_{KL}(\Phi \hat{Z} || Z)$$
 
 #### 6. Noisy Nets
-Standard exploration techniques like $\epsilon$-greedy are replaced by adding parametric noise directly to the weights of the network's linear layers. The network can thus learn to ignore the noise (to exploit) or use it (to explore) depending on the state's complexity.
+Standard exploration techniques like $\epsilon$-greedy are replaced by adding parametric noise directly to the weights of the network's linear layers. The network can thus learn to ignore the noise (to exploit) or use it (to explore) depending on the state's complexity : 
 $$y = (b + Wx) + (b_{noisy} \odot \epsilon_b + (W_{noisy} \odot \epsilon_W)x)$$
