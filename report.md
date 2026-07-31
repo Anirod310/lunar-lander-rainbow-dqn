@@ -42,3 +42,45 @@ $$\text{Loss} = D_{KL}(\Phi \hat{Z} || Z)$$
 #### 6. Noisy Nets
 Standard exploration techniques like $\epsilon$-greedy are replaced by adding parametric noise directly to the weights of the network's linear layers. The network can thus learn to ignore the noise (to exploit) or use it (to explore) depending on the state's complexity : 
 $$y = (b + Wx) + (b_{noisy} \odot \epsilon_b + (W_{noisy} \odot \epsilon_W)x)$$
+
+---
+
+### Code Architecture & Implementation Details
+
+To translate these theoretical foundations into a modular and maintainable codebase, the project is structured around a clean separation of concerns different Python modules. In a first step, we only implemented the DDQN and the Dueling Network as follows : 
+
+#### 1. Dueling Network Architecture (`model.py`)
+Implemented as a PyTorch `nn.Module`, the model features a Dueling Q-Network structure:
+* **Feature Extractor:** A shared fully-connected linear layer mapping the 8-dimensional observation vector to hidden representations (128 units, ReLU activation).
+* **Value Stream $V(S)$:** A dedicated linear branch computing a scalar state-value estimate.
+* **Advantage Stream $A(S, A)$:** Another linear branch computing relative advantage scores for each of the 4 discrete actions.
+* **Aggregation Layer:** Combines streams using mean-subtracted advantage aggregation to ensure identifiability
+
+#### 2. Experience Replay Buffer (`replay_buffer.py`)
+A memory buffer storing transition tuples $(S_t, A_t, R_t, S_{t+1}, \text{done}_t)$ with random batch sampling. Uniform sampling breaks temporal correlations between consecutive environment frames to stabilize gradient descent. The next step consists in replace this simple architecture with a **Prioritized Experience Replay Buffer**, which focuses on the transitions where the agent made the biggest mistakes instead of picking memories at random.
+
+#### 3. Agent & Loss Computation (`agent.py`)
+The `Agent` class contains decision-making and learning functions:
+* **Action Selection (`select_action`):** Implements an $\epsilon$-greedy exploration strategy with modular action dimensions.
+* **Double DQN Target & Loss (`learn`):** Uses the local network to select optimal future actions and the target network to evaluate them, mitigating overestimation bias. The loss is optimized via Mean Squared Error (MSE):
+  $$\mathcal{L}(\theta) = \mathbb{E} \left[ \left( R + \gamma Q_{\bar{\theta}}\left(S', \arg\max_{a'} Q_\theta(S', a')\right) (1 - \text{done}) - Q_\theta(S, A) \right)^2 \right]$$
+* **Soft Target Network Update (`soft_update_target_network`):** Smooths target network weight updates at every training step using Polyak averaging : ($\tau = 0.001$):
+  $$\theta_{\text{target}} \leftarrow \tau \theta_{\text{local}} + (1 - \tau) \theta_{\text{target}}$$
+
+#### 4. Training and Evaluation Pipeline
+The training process (`train.py`) follows a classic trial-and-error loop. The agent interacts with the `LunarLander-v3` environment over hundreds of episodes. As it plays, it progressively reduces its random exploration ($\\epsilon$-decay) to rely more on its learned neural network. Whenever the agent achieves a new high score, it automatically saves its "brain" (the network weights) to disk.
+
+For the evaluation phase (`evaluate.py`), we load this best-performing brain and test the agent in a purely deterministic mode (zero random exploration). We also enable the human render mode to visually watch the lander's flight dynamics and confirm its mastery of the environment.
+
+---
+
+### Experimental Results
+The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
+1. **Crash Phase:** Initially, the lander struggled, flipped, and crashed frequently.
+2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
+3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft two-legged landings, consistently scoring over **+200 points** (the official threshold for solving the environment).
+
+To see these results yourself, you just have to run `python evaluate.py` and see the agent lands by itself. 
+
+### Next Steps: Completing the Rainbow Architecture
+While the current agent performs exceptionally well, the ultimate goal of this project is to implement a full **Rainbow DQN**. To reach this state-of-the-art architecture, the next iterations of the codebase will upgrade the current baseline with the **Prioritized Experience Replay Buffer**, in order to optimize the learning on the big mistakes the agent made.

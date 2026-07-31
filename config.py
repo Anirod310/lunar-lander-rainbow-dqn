@@ -15,6 +15,8 @@ CONFIG = {
 
     "buffer_capacity" : 100000,
     "batch_size" : 64,
+    "num_episodes" : 800,
+    "num_test_episodes" : 10
 }
 
 
