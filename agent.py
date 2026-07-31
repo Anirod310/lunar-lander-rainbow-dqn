@@ -1,5 +1,6 @@
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 from model import Rainbow
 from replay_buffer import ReplayBuffer
 import random
@@ -32,3 +33,35 @@ class Agent():
                 q_values = self.q_network(state_tensor)
                 best_q_value = torch.argmax(q_values).item()
                 return best_q_value
+
+    def soft_update_target_network(self):
+        for (target_param, local_param) in zip(self.target_network.parameters(), self.q_network.parameters()):
+            target_param.data.copy_(self.tau*local_param.data+(1-self.tau)*target_param.data)
+
+    def learn(self, states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor):
+        q_values = self.q_network(states_tensor)
+        current_q_values = q_values.gather(1, actions_tensor)
+        with torch.no_grad():
+            next_q_values = self.target_network(next_states_tensor)
+            max_next_q_values = next_q_values.max(dim=1)[0].unsqueeze(1)
+
+        target_q_values = rewards_tensor + (self.gamma*max_next_q_values*(1-dones_tensor))
+
+        loss = F.mse_loss(current_q_values, target_q_values)
+
+        self.optimizer.zero_grad()
+
+        loss.backward()
+
+        self.optimizer.step()
+
+        self.soft_update_target_network()
+
+
+    def update(self, state, action, reward, next_state, done):
+        self.memory.add(state, action, reward, next_state, done)
+
+        if len(self.memory) >= self.batch_size:
+            states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor = self.memory.sample(self.batch_size)
+            self.learn(states_tensor, actions_tensor, rewards_tensor, next_states_tensor, dones_tensor)
+
