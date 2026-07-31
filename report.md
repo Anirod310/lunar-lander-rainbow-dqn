@@ -45,7 +45,7 @@ $$y = (b + Wx) + (b_{noisy} \odot \epsilon_b + (W_{noisy} \odot \epsilon_W)x)$$
 
 ---
 
-### Code Architecture & Implementation Details
+### First Code Architecture & Implementation Details
 
 To translate these theoretical foundations into a modular and maintainable codebase, the project is structured around a clean separation of concerns different Python modules. In a first step, we only implemented the DDQN and the Dueling Network as follows : 
 
@@ -74,13 +74,15 @@ For the evaluation phase (`evaluate.py`), we load this best-performing brain and
 
 ---
 
-### Experimental Results
+### Experimental Results (1)
 The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
 1. **Crash Phase:** Initially, the lander struggled, flipped, and crashed frequently.
 2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
-3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft two-legged landings, consistently scoring over **+200 points** (the official threshold for solving the environment).
+3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft two-legged landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
+
+The baseline model solves the environment in 68705 timesteps. To measure our algorithm's performance, we used this metric as our primary benchmark for sample efficiency. Our main goal is to drastically reduce this step count by incrementally implementing the advanced features of the Rainbow DQN.
 
 To see these results yourself, you just have to run `python evaluate.py` and see the agent lands by itself. 
 
-### Next Steps: Completing the Rainbow Architecture
+### Prioritized Experience Replay Buffer
 While the current agent performs exceptionally well, the ultimate goal of this project is to implement a full **Rainbow DQN**. To reach this state-of-the-art architecture, the next iterations of the codebase will upgrade the current baseline with the **Prioritized Experience Replay Buffer**, in order to optimize the learning on the big mistakes the agent made.
