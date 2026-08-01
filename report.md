@@ -76,7 +76,7 @@ For the evaluation phase (`evaluate.py`), we load this best-performing brain and
 
 ### Experimental Results (1)
 The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
-1. **Crash Phase:** Initially, the lander struggled, flipped, and crashed frequently.
+1. **Crash:** Initially, the lander struggled, flipped, and crashed frequently.
 2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
 3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft two-legged landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
 

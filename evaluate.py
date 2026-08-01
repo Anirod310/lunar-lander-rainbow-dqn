@@ -38,6 +38,6 @@ for episode in range(CONFIG["num_test_episodes"]):
 
         score_episode += reward
 
-    print(f"Episode : {episode} | Score : {score_episode}")
+    print(f"Episode : {episode + 1} | Score : {score_episode}")
 
 env.close()
