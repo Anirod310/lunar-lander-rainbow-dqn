@@ -5,7 +5,7 @@ from model import Rainbow
 from replay_buffer import ReplayBuffer
 import random
 
-class Agent():
+class Agent:
     def __init__(self, state_dim, action_dim, config):
         self.config = config
         self.action_dim = action_dim
