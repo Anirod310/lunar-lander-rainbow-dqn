@@ -1,6 +1,7 @@
 import  random
 import torch
 import numpy as np
+from collections import deque
 from sum_tree import SumTree
 
 class ReplayBuffer:
@@ -34,23 +35,60 @@ class ReplayBuffer:
         return len(self.memory)
 
 class PrioritizedReplayBuffer:
-    def __init__(self, capacity, state_dim, action_dim, alpha=0.6):
+    def __init__(self, capacity, state_dim, action_dim, alpha=0.6, n_step=3, gamma=0.99):
         self.tree = SumTree(capacity)
         self.capacity = capacity
         self.alpha = alpha
+        self.n_step = n_step
+        self.gamma = gamma
         self.epsilon = 1e-5
         self.current_size = 0
+        self.wait_list = deque(maxlen=n_step)
+        self.max_priority = 1.0
+
+    def _get_n_step_info(self):
+            reward_n = 0
+            state_n = self.wait_list[0][0]
+            action_n = self.wait_list[0][1]
+            next_state_n = self.wait_list[-1][3]
+            done_n = self.wait_list[-1][4]
+
+            for i in range(len(self.wait_list)):
+                reward_n += (self.gamma ** i) * self.wait_list[i][2]
+                
+                if self.wait_list[i][4]:
+                    next_state_n = self.wait_list[i][3]
+                    done_n = True
+                    break
+
+            return state_n, action_n, reward_n, next_state_n, done_n
 
     def add(self, state, action, reward, next_state, done):
-        max_priority = np.max(self.tree.tree[-self.capacity:])
-        if max_priority == 0:
-            max_priority = 1.0
 
-        data = (state, action, reward, next_state, done)
-        self.tree.add(max_priority, data)
+        self.wait_list.append((state, action, reward, next_state, done))
 
-        if self.current_size < self.capacity:
-            self.current_size += 1
+        if len(self.wait_list)>=self.n_step:
+            state_n, action_n, reward_n, next_state_n, done_n = self._get_n_step_info()
+            data = (state_n, action_n, reward_n, next_state_n, done_n)
+
+            self.tree.add(self.max_priority, data)
+
+            if self.current_size < self.capacity:
+                self.current_size += 1
+
+        if done :
+            if len(self.wait_list) == self.n_step:
+                self.wait_list.popleft()
+
+            while len(self.wait_list) > 0:
+                state_n, action_n, reward_n, next_state_n, done_n = self._get_n_step_info()
+                data = (state_n, action_n, reward_n, next_state_n, done_n)
+                
+                self.tree.add(self.max_priority, data)
+                if self.current_size < self.capacity:
+                    self.current_size += 1
+                
+                self.wait_list.popleft()
 
     def __len__(self):
         return self.current_size
@@ -75,7 +113,7 @@ class PrioritizedReplayBuffer:
 
             probability = priority / total_priority
 
-            weight = (self.capacity * probability) ** (-beta)
+            weight = (self.current_size * probability) ** (-beta)
             weights[i] = weight
 
             indices[i] = index
@@ -101,6 +139,9 @@ class PrioritizedReplayBuffer:
     def update_priorities(self, indices, td_errors):
         for i in range(len(indices)):
             new_priority = (abs(td_errors[i].item()) + self.epsilon) ** self.alpha
+
+            self.max_priority = max(self.max_priority, new_priority)
+
             self.tree.update(indices[i], new_priority)
 
 

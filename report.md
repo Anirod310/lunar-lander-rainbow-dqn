@@ -35,13 +35,13 @@ $$p_i \propto |\delta_i|^\alpha$$
 Instead of computing the error using only the immediate single next step, the agent looks $n$ steps ahead (we used $n=3$ because it proved to be well-balanced.) to accumulate the rewards before bootstrapping with the target network. This propagates the reward signals much faster through the network : 
 $$R_t^{(n)} = \sum_{k=0}^{n-1} \gamma^k R_{t+k+1} + \gamma^n \max_{a'} q_{\bar{\theta}}(S_{t+n}, a')$$
 
-#### 5. Distributional RL (Categorical DQN / C51)
-Instead of predicting a single expected average score for an action, the network predicts a categorical probability distribution of possible returns across a fixed set of atoms (51 buckets in the paper). The loss function becomes the Cross-Entropy (or KL Divergence) between the predicted distribution $\hat{Z}$ and the target distribution $Z$ projected via an operator $\Phi$ (which allows all the data to fits in a bucket) : 
-$$\text{Loss} = D_{KL}(\Phi \hat{Z} || Z)$$
-
-#### 6. Noisy Nets
+#### 5. Noisy Nets
 Standard exploration techniques like $\epsilon$-greedy are replaced by adding parametric noise directly to the weights of the network's linear layers. The network can thus learn to ignore the noise (to exploit) or use it (to explore) depending on the state's complexity : 
 $$y = (b + Wx) + (b_{noisy} \odot \epsilon_b + (W_{noisy} \odot \epsilon_W)x)$$
+
+#### 6. Distributional RL (Categorical DQN / C51)
+Instead of predicting a single expected average score for an action, the network predicts a categorical probability distribution of possible returns across a fixed set of atoms (51 buckets in the paper). The loss function becomes the Cross-Entropy (or KL Divergence) between the predicted distribution $\hat{Z}$ and the target distribution $Z$ projected via an operator $\Phi$ (which allows all the data to fits in a bucket) : 
+$$\text{Loss} = D_{KL}(\Phi \hat{Z} || Z)$$
 
 ---
 
@@ -101,6 +101,10 @@ With the PER architecture fully integrated, the agent no longer wastes time trai
 This result, consistent with existing literature, demonstrates that prioritization alone in a highly stochastic environment causes overfitting to extreme errors. This justifies the necessity of coupling PER with N-Step Learning to restore temporal context to these errors, in order to fully benefit from prioritization and achieve significantly better results than the simple Replay Buffer.
 
 ### Making PER consistant by adding N-Step Learning 
-The performance drop observed in the previous section showed a real limitation of using PER in isolation. To make prioritization consistent and truly effective, I implemented the N-Step Learning mechanism. Instead of learning from immediate, myopic transitions, the agent now waits for $N$ steps before computing its TD error. This forces the memory to prioritize meaningful sequences of actions rather than isolated incidents.
+The performance drop observed in the previous section showed a real limitation of using PER in isolation. To make prioritization consistent and truly effective, I implemented the N-Step Learning mechanism. Instead of learning from immediate transitions, the agent now waits for $N$ steps before computing its TD error. This forces the memory to prioritize meaningful sequences of actions rather than isolated incidents.
 
+**Key Mechanisms:**
+In traditional Q-learning, the agent updates its knowledge based on a single step, combining the immediate reward with the estimated value of the next state. N-step learning does it differently. Instead of looking just one step ahead, the agent accumulates real rewards over $N$ consecutive steps before bootstrapping the remaining value from the state reached at step $N$. This approach allows the agent to learn from delayed rewards much faster and more efficiently. The information about successful or catastrophic actions propagates quicker through the neural network, significantly accelerating the learning process while keeping the variance of the updates manageable.
 
+**Results & Sample Efficiency:**
+"After implementing N-Step Learning ($N=3$) and running the training on the same fixed seed, the agent solved the environment in 82,900 timesteps. While it did not beat the pure DDQN + Dueling Network baseline (68,705 steps), it showed a massive 25% improvement over the isolated PER architecture (110,000 steps).This result proves that multi-step returns successfully mitigate the PER's overfitting issue by restoring temporal context. However, it also highlights that on environments with dense reward signals like LunarLander, the variance introduced by N-Step and PER can sometimes outweigh their benefits compared to simpler models. To truly unlock this architecture's potential, we must continue stacking the remaining Rainbow components, starting with the network architecture itself."

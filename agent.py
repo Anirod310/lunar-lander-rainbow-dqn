@@ -49,18 +49,23 @@ class Agent:
         q_values = self.q_network(states_tensor)
         current_q_values = q_values.gather(1, actions_tensor)
         with torch.no_grad():
+            next_actions = self.q_network(next_states_tensor).argmax(dim=1, keepdim=True)
+
             next_q_values = self.target_network(next_states_tensor)
-            max_next_q_values = next_q_values.max(dim=1)[0].unsqueeze(1)
 
-        target_q_values = rewards_tensor + (self.gamma*max_next_q_values*(1-dones_tensor))
+            max_next_q_values = next_q_values.gather(1, next_actions)
 
-        tq_errors = (target_q_values - current_q_values).detach().cpu().numpy() 
+        n_step = self.memory.n_step
 
-        elementwise_loss = F.mse_loss(current_q_values, target_q_values, reduction='none')
+        target_q_values = rewards_tensor + ((self.gamma ** n_step) * max_next_q_values * (1 - dones_tensor))
+
+        td_errors = target_q_values - current_q_values
+
+        elementwise_loss = F.smooth_l1_loss(current_q_values, target_q_values, reduction='none')
 
         loss = (elementwise_loss * weights).mean()
 
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
 
         loss.backward()
 
@@ -68,7 +73,7 @@ class Agent:
 
         self.soft_update_target_network()
 
-        self.memory.update_priorities(indices, tq_errors)
+        self.memory.update_priorities(indices, td_errors.squeeze().detach().cpu().numpy())
 
 
     def update(self, state, action, reward, next_state, done):
