@@ -39,6 +39,7 @@ class PrioritizedReplayBuffer:
         self.capacity = capacity
         self.alpha = alpha
         self.epsilon = 1e-5
+        self.current_size = 0
 
     def add(self, state, action, reward, next_state, done):
         max_priority = np.max(self.tree.tree[-self.capacity:])
@@ -46,8 +47,14 @@ class PrioritizedReplayBuffer:
             max_priority = 1.0
 
         data = (state, action, reward, next_state, done)
-
         self.tree.add(max_priority, data)
+
+        if self.current_size < self.capacity:
+            self.current_size += 1
+
+    def __len__(self):
+        return self.current_size
+
 
     def sample(self, batch_size, beta=0.4):
         batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones = [], [], [], [], []

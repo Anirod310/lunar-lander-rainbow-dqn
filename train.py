@@ -2,8 +2,25 @@ from config import CONFIG
 from agent import Agent
 import gymnasium as gym
 import torch
+import random
+import numpy as np
+
+def set_seed(env, seed=42):
+    random.seed(seed)
+
+    np.random.seed(seed)
+    
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        
+    env.action_space.seed(seed)
 
 env = gym.make("LunarLander-v3")
+
+set_seed(env, seed=42)
 
 agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"],config=CONFIG)
 
@@ -13,9 +30,13 @@ best_score = 315
 
 total_timesteps = 0
 
+state, info = env.reset(seed=42)
+
 for episode in range(CONFIG["num_episodes"]):
     score_episode = 0
-    state, info = env.reset()
+
+    if episode != 0:
+        state,info = env.reset()
 
     done = False
 

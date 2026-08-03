@@ -16,20 +16,20 @@ This time, the paper I studied to understand how this algorithm is implemented w
 
 ### Mathematical Foundations
 
-To build the Rainbow DQN, we combine six independent extensions of the standard DQN to create a state-of-the-art agent. Here is the mathematical intuition and the core formula behind each component:
+To build the Rainbow DQN, I combined six independent extensions of the standard DQN to create a state-of-the-art agent. Here is the mathematical intuition and the core formula behind each component:
 
 #### 1. Double DQN (DDQN)
-Standard DQN suffers from an overestimation bias because the same network is used to select and evaluate the best next action. DDQN decouples this process by using the main network ($\theta$) to select the action, and the target network ($\bar{\theta}$) to evaluate its value : 
+Standard DQN suffers from an overestimation bias because the same network is used to select and evaluate the best next action. DDQN separates this process by using the main network ($\theta$) to select the action, and the target network ($\bar{\theta}$) to evaluate its value : 
 $$Y_t^{DoubleQ} = R_{t+1} + \gamma q_{\bar{\theta}}(S_{t+1}, \arg\max_{a'} q_\theta(S_{t+1}, a'))$$
 
-#### 2. Prioritized Experience Replay (PER)
-Instead of sampling transitions uniformly at random from the Replay Buffer as we did before, PER samples them based on the magnitude of their error (the Temporal Difference error, or KL divergence in a distributional context (that we'll apply later)). This forces the agent to learn more frequently from unexpected outcomes where it made the biggest mistakes : 
-$$p_i \propto |\delta_i|^\alpha$$
-*(Where $p_i$ is the priority of the transition $i$, $\delta_i$ is the error, and $\alpha$ determines how much prioritization is used).*
-
-#### 3. Dueling Networks
+#### 2. Dueling Networks
 This architecture modifies the internal structure of the neural network. Instead of directly predicting the Q-values, the network splits into two separate streams: one estimating the global State Value $V(S)$ and the other estimating the Advantage $A(S, A)$ of each specific action. They are combined at the final output layer to compute the Q-values : 
 $$Q(S, A) = V(S) + \left( A(S, A) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(S, a') \right)$$
+
+#### 3. Prioritized Experience Replay (PER)
+Instead of sampling transitions uniformly at random from the Replay Buffer as I did before, PER samples them based on the magnitude of their error (the Temporal Difference error, or KL divergence in a distributional context (that I will apply later)). This forces the agent to learn more frequently from unexpected outcomes where it made the biggest mistakes : 
+$$p_i \propto |\delta_i|^\alpha$$
+*(Where $p_i$ is the priority of the transition $i$, $\delta_i$ is the error, and $\alpha$ determines how much prioritization is used).*
 
 #### 4. Multi-step Learning (n-step returns)
 Instead of computing the error using only the immediate single next step, the agent looks $n$ steps ahead (we used $n=3$ because it proved to be well-balanced.) to accumulate the rewards before bootstrapping with the target network. This propagates the reward signals much faster through the network : 
@@ -47,7 +47,7 @@ $$y = (b + Wx) + (b_{noisy} \odot \epsilon_b + (W_{noisy} \odot \epsilon_W)x)$$
 
 ### First Code Architecture & Implementation Details
 
-To translate these theoretical foundations into a modular and maintainable codebase, the project is structured around a clean separation of concerns different Python modules. In a first step, we only implemented the DDQN and the Dueling Network as follows : 
+To translate this into code, the project is structured with different Python modules. In a first step, I only implemented the DDQN and the Dueling Network as follows : 
 
 #### 1. Dueling Network Architecture (`model.py`)
 Implemented as a PyTorch `nn.Module`, the model features a Dueling Q-Network structure:
@@ -61,7 +61,7 @@ A memory buffer storing transition tuples $(S_t, A_t, R_t, S_{t+1}, \text{done}_
 
 #### 3. Agent & Loss Computation (`agent.py`)
 The `Agent` class contains decision-making and learning functions:
-* **Action Selection (`select_action`):** Implements an $\epsilon$-greedy exploration strategy with modular action dimensions.
+* **Action Selection (`select_action`):** Implements an $\epsilon$-greedy exploration strategy.
 * **Double DQN Target & Loss (`learn`):** Uses the local network to select optimal future actions and the target network to evaluate them, mitigating overestimation bias. The loss is optimized via Mean Squared Error (MSE):
   $$\mathcal{L}(\theta) = \mathbb{E} \left[ \left( R + \gamma Q_{\bar{\theta}}\left(S', \arg\max_{a'} Q_\theta(S', a')\right) (1 - \text{done}) - Q_\theta(S, A) \right)^2 \right]$$
 * **Soft Target Network Update (`soft_update_target_network`):** Smooths target network weight updates at every training step using Polyak averaging : ($\tau = 0.001$):
@@ -70,19 +70,37 @@ The `Agent` class contains decision-making and learning functions:
 #### 4. Training and Evaluation Pipeline
 The training process (`train.py`) follows a classic trial-and-error loop. The agent interacts with the `LunarLander-v3` environment over hundreds of episodes. As it plays, it progressively reduces its random exploration ($\\epsilon$-decay) to rely more on its learned neural network. Whenever the agent achieves a new high score, it automatically saves its "brain" (the network weights) to disk.
 
-For the evaluation phase (`evaluate.py`), we load this best-performing brain and test the agent in a purely deterministic mode (zero random exploration). We also enable the human render mode to visually watch the lander's flight dynamics and confirm its mastery of the environment.
+For the evaluation phase (`evaluate.py`), I loaded this best-performing brain and test the agent in a purely deterministic mode (zero random exploration). I also enabled the human render mode to visually watch the lander's flight dynamics and confirm its mastery of the environment.
 
----
-
-### Experimental Results (1)
-The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
+**Results & Sample Efficiency** : The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
 1. **Crash:** Initially, the lander struggled, flipped, and crashed frequently.
 2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
-3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft two-legged landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
+3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
 
-The baseline model solves the environment in 68705 timesteps. To measure our algorithm's performance, we used this metric as our primary benchmark for sample efficiency. Our main goal is to drastically reduce this step count by incrementally implementing the advanced features of the Rainbow DQN.
+The baseline model solves the environment in 68705 timesteps. To measure our algorithm's performance, I used this metric as my primary benchmark for sample efficiency. my main goal was to drastically reduce this step count by incrementally implementing the advanced features of the Rainbow DQN.
+
+*Note : To ensure fair comparison and reproducibility, all models were trained using the same fixed random seed(42).*
 
 To see these results yourself, you just have to run `python evaluate.py` and see the agent lands by itself. 
 
-### Prioritized Experience Replay Buffer
+### Adding Prioritized Experience Replay Buffer
 While the current agent performs exceptionally well, the ultimate goal of this project is to implement a full **Rainbow DQN**. To reach this state-of-the-art architecture, the next iterations of the codebase will upgrade the current baseline with the **Prioritized Experience Replay Buffer**, in order to optimize the learning on the big mistakes the agent made.
+
+To optimize learning, the standard uniform replay buffer was replaced with a **Prioritized Experience Replay (PER)** system. Instead of treating all past experiences equally, the agent now prioritizes "surprising" transitions where it made the biggest prediction errors, learning from its most critical mistakes first.
+
+**Key Mechanisms:**
+* **SumTree Data Structure:** To efficiently sample memories based on their priorities without slowing down the training loop, a binary `SumTree` was implemented from scratch. The leaves store the individual priorities, while the parent nodes store the sum of their children, allowing stratified sampling.
+* **TD Error Prioritization:** After each neural network update, the absolute Temporal Difference (TD) error is extracted and used to update the memory's priority in the tree. A hyperparameter $\alpha = 0.6$ is used to smooth out these priorities and prevent the network from overfitting.
+* **Importance Sampling (IS) Weights:** Because I intentionally bias the agent's perception of the environment (by forcing it to review its crashes and successes much more often than standard hovering), I had to correct the gradient updates. An IS weight (initially controlled by $\beta = 0.4$) is calculated for each sampled memory and multiplied directly into the Mean Squared Error loss.
+
+**Results & Sample Efficiency (PER vs Baseline):**
+With the PER architecture fully integrated, the agent no longer wastes time training on perfectly understood states. This targeted learning should, in theory, accelerate its understanding of the physical dynamics. However, after training both, I obtained these results : 
+* **Previous Baseline (Dueling DDQN):** 68,654 timesteps to solve.
+* **New Performance (with PER):** 75550 timesteps to solve.
+
+This result, consistent with existing literature, demonstrates that prioritization alone in a highly stochastic environment causes overfitting to extreme errors. This justifies the necessity of coupling PER with N-Step Learning to restore temporal context to these errors, in order to fully benefit from prioritization and achieve significantly better results than the simple Replay Buffer.
+
+### Making PER consistant by adding N-Step Learning 
+The performance drop observed in the previous section showed a real limitation of using PER in isolation. To make prioritization consistent and truly effective, I implemented the N-Step Learning mechanism. Instead of learning from immediate, myopic transitions, the agent now waits for $N$ steps before computing its TD error. This forces the memory to prioritize meaningful sequences of actions rather than isolated incidents.
+
+
