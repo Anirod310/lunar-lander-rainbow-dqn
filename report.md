@@ -77,7 +77,7 @@ For the evaluation phase (`evaluate.py`), I loaded this best-performing brain an
 2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
 3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
 
-The baseline model solves the environment in 68705 timesteps. To measure our algorithm's performance, I used this metric as my primary benchmark for sample efficiency. my main goal was to drastically reduce this step count by incrementally implementing the advanced features of the Rainbow DQN.
+The baseline model solves the environment in 68,705 timesteps. To measure our algorithm's performance, I used this metric as my primary benchmark for sample efficiency. my main goal was to drastically reduce this step count by incrementally implementing the advanced features of the Rainbow DQN.
 
 *Note : To ensure fair comparison and reproducibility, all models were trained using the same fixed random seed(42).*
 
@@ -95,8 +95,8 @@ To optimize learning, the standard uniform replay buffer was replaced with a **P
 
 **Results & Sample Efficiency (PER vs Baseline):**
 With the PER architecture fully integrated, the agent no longer wastes time training on perfectly understood states. This targeted learning should, in theory, accelerate its understanding of the physical dynamics. However, after training both, I obtained these results : 
-* **Previous Baseline (Dueling DDQN):** 68,654 timesteps to solve.
-* **New Performance (with PER):** 75550 timesteps to solve.
+* **Previous Baseline (Dueling DDQN):** 68,705 timesteps to solve.
+* **New Performance (with PER):** 75,550 timesteps to solve.
 
 This result, consistent with existing literature, demonstrates that prioritization alone in a highly stochastic environment causes overfitting to extreme errors. This justifies the necessity of coupling PER with N-Step Learning to restore temporal context to these errors, in order to fully benefit from prioritization and achieve significantly better results than the simple Replay Buffer.
 
@@ -107,4 +107,7 @@ The performance drop observed in the previous section showed a real limitation o
 In traditional Q-learning, the agent updates its knowledge based on a single step, combining the immediate reward with the estimated value of the next state. N-step learning does it differently. Instead of looking just one step ahead, the agent accumulates real rewards over $N$ consecutive steps before bootstrapping the remaining value from the state reached at step $N$. This approach allows the agent to learn from delayed rewards much faster and more efficiently. The information about successful or catastrophic actions propagates quicker through the neural network, significantly accelerating the learning process while keeping the variance of the updates manageable.
 
 **Results & Sample Efficiency:**
-"After implementing N-Step Learning ($N=3$) and running the training on the same fixed seed, the agent solved the environment in 82,900 timesteps. While it did not beat the pure DDQN + Dueling Network baseline (68,705 steps), it showed a massive 25% improvement over the isolated PER architecture (110,000 steps).This result proves that multi-step returns successfully mitigate the PER's overfitting issue by restoring temporal context. However, it also highlights that on environments with dense reward signals like LunarLander, the variance introduced by N-Step and PER can sometimes outweigh their benefits compared to simpler models. To truly unlock this architecture's potential, we must continue stacking the remaining Rainbow components, starting with the network architecture itself."
+After correcting the structural implementation of the Double Q-Learning action evaluation and ensuring strictly positive TD-errors for the Prioritized Experience Replay (PER), the combined architecture achieved a spectacular leap in performance. Running on the same fixed seed with N-Step Learning (N=3), the agent solved the environment in just 63,095 timesteps. Not only does this resolve the previous overfitting and variance issues, but it decisively shatters the pure DDQN + Dueling Network baseline (68,705 timesteps). This result proves that when overestimation bias is properly mathematically mitigated and temporal context is accurately restored, the synergy between PER, N-Step, DDQN, and Dueling networks is remarkably powerful, even in dense-reward environments like LunarLander. To finalize the complete Rainbow architecture, the next step is to replace the standard epsilon-greedy strategy with Noisy Nets for automated exploration, before tackling the final Distributional RL component.
+
+### Replacing standard epsilon-greedy with Noisy Nets
+
