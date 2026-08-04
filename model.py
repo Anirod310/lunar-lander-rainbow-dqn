@@ -2,6 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+class NoisyLinear(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(NoisyLinear, self).__init__()
+        ...
+
 class Rainbow(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(Rainbow, self).__init__()
