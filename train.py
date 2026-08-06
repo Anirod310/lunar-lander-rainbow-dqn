@@ -56,12 +56,12 @@ for episode in range(CONFIG["num_episodes"]):
 
         score_episode += reward
 
-    agent.epsilon = max(agent.epsilon*CONFIG["epsilon_decay"], CONFIG["epsilon_end"])
+    #agent.epsilon = max(agent.epsilon*CONFIG["epsilon_decay"], CONFIG["epsilon_end"]) --> Unused since I implemented Noisy Linear
 
     scores.append(score_episode)
 
     if episode % 100 == 0 :
-        print(f"Episode {episode} | Score : {score_episode} | Epsilon : {agent.epsilon}")
+        print(f"Episode {episode} | Score : {score_episode}")
 
     if score_episode > 200:
         print(f"Perfect landing ! number of timesteps : {total_timesteps}")

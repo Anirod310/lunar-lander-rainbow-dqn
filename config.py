@@ -17,6 +17,7 @@ CONFIG = {
     "batch_size" : 64,
     "num_episodes" : 800,
     "num_test_episodes" : 10
+    
 }
 
 
