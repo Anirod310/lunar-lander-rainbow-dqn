@@ -11,7 +11,7 @@ agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"], config=CONFIG)
 
 model = agent.q_network.load_state_dict(torch.load("models/best_weights.pth", weights_only=True))
 
-agent.epsilon = 0.0
+#agent.epsilon = 0.0
 
 for episode in range(CONFIG["num_test_episodes"]):
     score_episode = 0

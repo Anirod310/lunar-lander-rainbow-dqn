@@ -63,8 +63,11 @@ for episode in range(CONFIG["num_episodes"]):
     if episode % 100 == 0 :
         print(f"Episode {episode} | Score : {score_episode}")
 
-    if score_episode > 200:
+    gived = False
+
+    if (score_episode > 200) and (not gived):
         print(f"Perfect landing ! number of timesteps : {total_timesteps}")
+        gived = True
 
     if score_episode > best_score : 
         print(f"Perfect landing higher than the best score ! Score {score_episode} | Saving weights...")
