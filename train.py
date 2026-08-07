@@ -26,6 +26,8 @@ agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"],config=CONFIG)
 
 scores = []
 
+gived = False
+
 best_score = 320.3
 
 total_timesteps = 0
@@ -62,10 +64,8 @@ for episode in range(CONFIG["num_episodes"]):
 
     mooving_average = np.mean(scores[-100:])
 
-    if episode % 10 == 0 :
+    if episode % 100 == 0 :
         print(f"Episode {episode} | Score : {score_episode:.2f} | Mean : {mooving_average:.2f}")
-
-    gived = False
 
     if (score_episode > 200) and (not gived):
         print(f"Perfect landing ! number of timesteps : {total_timesteps}")
