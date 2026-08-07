@@ -14,7 +14,7 @@ This time, the paper I studied to understand how this algorithm is implemented w
 
 ## How The Agent Learns
 
-### Mathematical Foundations
+### I - Mathematical Foundations
 
 To build the Rainbow DQN, I combined six independent extensions of the standard DQN to create a state-of-the-art agent. Here is the mathematical intuition and the core formula behind each component:
 
@@ -45,7 +45,7 @@ $$\text{Loss} = D_{KL}(\Phi \hat{Z} || Z)$$
 
 ---
 
-### First Code Architecture & Implementation Details
+### II - First Code Architecture & Implementation Details
 
 To translate this into code, the project is structured with different Python modules. In a first step, I only implemented the DDQN and the Dueling Network as follows : 
 
@@ -83,7 +83,9 @@ The baseline model solves the environment in 68,705 timesteps. To measure our al
 
 To see these results yourself, you just have to run `python evaluate.py` and see the agent lands by itself. 
 
-### Adding Prioritized Experience Replay Buffer
+---
+
+### III - Adding Prioritized Experience Replay Buffer
 While the current agent performs exceptionally well, the ultimate goal of this project is to implement a full **Rainbow DQN**. To reach this state-of-the-art architecture, the next iterations of the codebase will upgrade the current baseline with the **Prioritized Experience Replay Buffer**, in order to optimize the learning on the big mistakes the agent made.
 
 To optimize learning, the standard uniform replay buffer was replaced with a **Prioritized Experience Replay (PER)** system. Instead of treating all past experiences equally, the agent now prioritizes "surprising" transitions where it made the biggest prediction errors, learning from its most critical mistakes first.
@@ -100,7 +102,9 @@ With the PER architecture fully integrated, the agent no longer wastes time trai
 
 This result, consistent with existing literature, demonstrates that prioritization alone in a highly stochastic environment causes overfitting to extreme errors. This justifies the necessity of coupling PER with N-Step Learning to restore temporal context to these errors, in order to fully benefit from prioritization and achieve significantly better results than the simple Replay Buffer.
 
-### Making PER consistant by adding N-Step Learning 
+---
+
+### IV - Making PER consistant by adding N-Step Learning 
 The performance drop observed in the previous section showed a real limitation of using PER in isolation. To make prioritization consistent and truly effective, I implemented the N-Step Learning mechanism. Instead of learning from immediate transitions, the agent now waits for $N$ steps before computing its TD error. This forces the memory to prioritize meaningful sequences of actions rather than isolated incidents.
 
 **Key Mechanisms:**
@@ -109,6 +113,23 @@ In traditional Q-learning, the agent updates its knowledge based on a single ste
 **Results & Sample Efficiency:**
 After correcting the structural implementation of the Double Q-Learning action evaluation and ensuring strictly positive TD-errors for the Prioritized Experience Replay (PER), the combined architecture achieved a spectacular leap in performance. Running on the same fixed seed with N-Step Learning (N=3), the agent solved the environment in just 63,095 timesteps. Not only does this resolve the previous overfitting and variance issues, but it decisively shatters the pure DDQN + Dueling Network baseline (68,705 timesteps). This result proves that when overestimation bias is properly mathematically mitigated and temporal context is accurately restored, the synergy between PER, N-Step, DDQN, and Dueling networks is remarkably powerful, even in dense-reward environments like LunarLander. To finalize the complete Rainbow architecture, the next step is to replace the standard epsilon-greedy strategy with Noisy Nets for automated exploration, before tackling the final Distributional RL component.
 
-### Replacing standard epsilon-greedy with Noisy Nets
+---
 
+### V - Replacing standard epsilon-greedy with Noisy Nets
 
+**Key Mechanisms:**
+In standard DQN architectures, the exploration rate is driven by the $\epsilon$-greedy method, which forces the agent to take completely random actions with a manual probabilty that decays over iterations. Noisy Nets replace this  method by injectic parametric noise directly into the weights and biases of the network. Instead of single scalar weights, the network learns both the mean and the standard deviation of the weights. When the network is still uncertain, the standard deviation value remains high, allowing the injected noise to influence a lot the output. As the agent learns and becomes confident in its value estimates, the optimizer naturally decreases the standard deviation parameters toward zero, and thus allowing the agent to switch smoothly from exploration to exploitation. 
+
+**Results & Sample Efficiency:**
+After integrating Noisy Nets and removing the epsilon parameter, the agent solved LunarLander environment in 79,380 timesteps. While this is an increase compared to the previous baseline, this behaviour is kind of expected. First, the network now has to optimize almost the double of parameters compared to the previous one (since we added the mean and the standard deviation). Second, Noisy Nets are designed, in the Rainbow paper, to act as a "multiplier" for the final component of the Rainbow architecture : Distributional RL. Currently, the noise is perturbing a simple mean Q-value. Once the network predicts full probabilty distributions of expected return, the active exploration of Noisy Nets will become way more powerfull. 
+
+---
+
+### Observations
+- At this point in the project, I was a bit confused by the results. I wanted to go back and run new evaluations on my previous models. However, because I had added so many architectural changes, modifying the code felt too difficult and time-consuming. I realized that my codebase lacked flexibility. For example, I couldn't easily switch between a standard DDQN and a Dueling DDQN. This was an important lesson. In my future projects, I will make sure to build a flexible and modular architecture from the start, allowing me to easily test different configurations at any step of the project.
+
+- During this phase, I also realized that relying only on total timesteps was not the best way to measyre the agent's performances. For instance, even though the  Noisy Nets architecture required more timesteps to converge, it achived a much higher peak score of 320, compared to 310 for the previous baseline. This clearly shows that timesteps alone do not give the full picture of an agent's performance and policy quantity. To fix this, for the final evalutation phase, I will evaluate the model using three metrics : **The maximum score achieved, the 100-episode moving average score**, and the **total timesteps to convergence**.
+
+---
+
+### VI - Final Step : Implementing Distributional RL (C51)

@@ -26,7 +26,7 @@ agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"],config=CONFIG)
 
 scores = []
 
-best_score = 315
+best_score = 320.3
 
 total_timesteps = 0
 
