@@ -60,8 +60,10 @@ for episode in range(CONFIG["num_episodes"]):
 
     scores.append(score_episode)
 
-    if episode % 100 == 0 :
-        print(f"Episode {episode} | Score : {score_episode}")
+    mooving_average = np.mean(scores[-100:])
+
+    if episode % 10 == 0 :
+        print(f"Episode {episode} | Score : {score_episode:.2f} | Mean : {mooving_average:.2f}")
 
     gived = False
 
