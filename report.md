@@ -72,7 +72,9 @@ The training process (`train.py`) follows a classic trial-and-error loop. The ag
 
 For the evaluation phase (`evaluate.py`), I loaded this best-performing brain and test the agent in a purely deterministic mode (zero random exploration). I also enabled the human render mode to visually watch the lander's flight dynamics and confirm its mastery of the environment.
 
-**Results & Sample Efficiency** : The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
+**Results & Sample Efficiency** 
+
+The results of this current architecture (Dueling DDQN) are excellent. The training clearly followed three distinct phases:
 1. **Crash:** Initially, the lander struggled, flipped, and crashed frequently.
 2. **Survivial:** The agent learned to fire its main engine to slow its descent, avoiding catastrophic crashes but often missing the landing pad or drifting away.
 3. **Mastery:** Eventually, the architecture converged really well. The agent learned to stabilize its angle using side thrusters, glide towards the flags, and perform soft landings, consistently scoring over **+200 points** (the official threshold for solving the environment). 
@@ -96,6 +98,7 @@ To optimize learning, the standard uniform replay buffer was replaced with a **P
 * **Importance Sampling (IS) Weights:** Because I intentionally bias the agent's perception of the environment (by forcing it to review its crashes and successes much more often than standard hovering), I had to correct the gradient updates. An IS weight (initially controlled by $\beta = 0.4$) is calculated for each sampled memory and multiplied directly into the Mean Squared Error loss.
 
 **Results & Sample Efficiency (PER vs Baseline):**
+
 With the PER architecture fully integrated, the agent no longer wastes time training on perfectly understood states. This targeted learning should, in theory, accelerate its understanding of the physical dynamics. However, after training both, I obtained these results : 
 * **Previous Baseline (Dueling DDQN):** 68,705 timesteps to solve.
 * **New Performance (with PER):** 75,550 timesteps to solve.
@@ -108,9 +111,11 @@ This result, consistent with existing literature, demonstrates that prioritizati
 The performance drop observed in the previous section showed a real limitation of using PER in isolation. To make prioritization consistent and truly effective, I implemented the N-Step Learning mechanism. Instead of learning from immediate transitions, the agent now waits for $N$ steps before computing its TD error. This forces the memory to prioritize meaningful sequences of actions rather than isolated incidents.
 
 **Key Mechanisms:**
+
 In traditional Q-learning, the agent updates its knowledge based on a single step, combining the immediate reward with the estimated value of the next state. N-step learning does it differently. Instead of looking just one step ahead, the agent accumulates real rewards over $N$ consecutive steps before bootstrapping the remaining value from the state reached at step $N$. This approach allows the agent to learn from delayed rewards much faster and more efficiently. The information about successful or catastrophic actions propagates quicker through the neural network, significantly accelerating the learning process while keeping the variance of the updates manageable.
 
 **Results & Sample Efficiency:**
+
 After correcting the structural implementation of the Double Q-Learning action evaluation and ensuring strictly positive TD-errors for the Prioritized Experience Replay (PER), the combined architecture achieved a spectacular leap in performance. Running on the same fixed seed with N-Step Learning (N=3), the agent solved the environment in just 63,095 timesteps. Not only does this resolve the previous overfitting and variance issues, but it decisively shatters the pure DDQN + Dueling Network baseline (68,705 timesteps). This result proves that when overestimation bias is properly mathematically mitigated and temporal context is accurately restored, the synergy between PER, N-Step, DDQN, and Dueling networks is remarkably powerful, even in dense-reward environments like LunarLander. To finalize the complete Rainbow architecture, the next step is to replace the standard epsilon-greedy strategy with Noisy Nets for automated exploration, before tackling the final Distributional RL component.
 
 ---
