@@ -123,9 +123,11 @@ After correcting the structural implementation of the Double Q-Learning action e
 ### V - Replacing standard epsilon-greedy with Noisy Nets
 
 **Key Mechanisms:**
+
 In standard DQN architectures, the exploration rate is driven by the $\epsilon$-greedy method, which forces the agent to take completely random actions with a manual probabilty that decays over iterations. Noisy Nets replace this  method by injectic parametric noise directly into the weights and biases of the network. Instead of single scalar weights, the network learns both the mean and the standard deviation of the weights. When the network is still uncertain, the standard deviation value remains high, allowing the injected noise to influence a lot the output. As the agent learns and becomes confident in its value estimates, the optimizer naturally decreases the standard deviation parameters toward zero, and thus allowing the agent to switch smoothly from exploration to exploitation. 
 
 **Results & Sample Efficiency:**
+
 After integrating Noisy Nets and removing the epsilon parameter, the agent solved LunarLander environment in 79,380 timesteps. While this is an increase compared to the previous baseline, this behaviour is kind of expected. First, the network now has to optimize almost the double of parameters compared to the previous one (since we added the mean and the standard deviation). Second, Noisy Nets are designed, in the Rainbow paper, to act as a "multiplier" for the final component of the Rainbow architecture : Distributional RL. Currently, the noise is perturbing a simple mean Q-value. Once the network predicts full probabilty distributions of expected return, the active exploration of Noisy Nets will become way more powerfull. 
 
 ---
