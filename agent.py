@@ -6,11 +6,12 @@ from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 import random
 
 class Agent:
-    def __init__(self, state_dim, action_dim, config):
+    def __init__(self, state_dim, action_dim, n_atoms, config):
         self.config = config
         self.action_dim = action_dim
-        self.q_network = Rainbow(state_dim, action_dim)
-        self.target_network = Rainbow(state_dim, action_dim)
+        self.n_atoms = n_atoms
+        self.q_network = Rainbow(state_dim, action_dim, n_atoms)
+        self.target_network = Rainbow(state_dim, action_dim, n_atoms)
 
         self.optimizer = optim.Adam(params=self.q_network.parameters(), lr=config["learning_rate"])
 
@@ -36,11 +37,11 @@ class Agent:
 
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
-            q_values = self.q_network(state_tensor)
-            return torch.argmax(q_values).item()
+            probs = self.q_network(state_tensor)
+            expected_value = torch.sum(self.q_network.Z_tensor * probs, dim=-1)
+            return torch.argmax(expected_value, dim=-1).item()
 
-        #All the part below is relevant only with epsilon greedy exploration method
-        
+        #All the part below is relevant only with epsilon greedy exploration method : 
         '''random_number = random.random()
         if random_number < self.epsilon :
             return random.randint(0, self.action_dim-1)
@@ -60,24 +61,58 @@ class Agent:
         self.q_network.reset_all_noise()
         self.target_network.reset_all_noise()
 
-        q_values = self.q_network(states_tensor)
-        current_q_values = q_values.gather(1, actions_tensor)
         with torch.no_grad():
-            next_actions = self.q_network(next_states_tensor).argmax(dim=1, keepdim=True)
 
-            next_q_values = self.target_network(next_states_tensor)
+            next_probs = self.q_network(next_states_tensor)
 
-            max_next_q_values = next_q_values.gather(1, next_actions)
+            expected_values  = torch.sum(next_probs * self.q_network.Z_tensor, dim=-1)
 
-        n_step = self.memory.n_step
+            best_future_action_index = torch.argmax(expected_values, dim=-1, keepdim=True)
 
-        target_q_values = rewards_tensor + ((self.gamma ** n_step) * max_next_q_values * (1 - dones_tensor))
+            target_next_probs = self.target_network(next_states_tensor)
 
-        td_errors = torch.abs(target_q_values - current_q_values) + 1e-5
+            expended_indices = best_future_action_index.unsqueeze(-1).expand(-1, 1, self.n_atoms)
 
-        elementwise_loss = F.smooth_l1_loss(current_q_values, target_q_values, reduction='none')
+            best_next_probs = torch.gather(target_next_probs, dim=1, index= expended_indices).squeeze(1)
 
-        loss = (elementwise_loss * weights).mean()
+            n_step = self.memory.n_step
+
+            gamma_n = self.gamma ** n_step
+
+            Tz = (self.q_network.Z_tensor * gamma_n * (1 - dones_tensor)) + rewards_tensor
+            Tz = torch.clamp(Tz, self.q_network.Z_tensor[0], self.q_network.Z_tensor[-1])
+
+            delta_z = (self.q_network.Z_tensor[-1]-self.q_network.Z_tensor[0]) / (self.n_atoms-1)
+
+            b = (Tz-self.q_network.Z_tensor[0]) / delta_z
+
+            lower = torch.clamp(b.floor().long(), 0, self.n_atoms-1)
+            upper = torch.clamp(b.ceil().long(), 0, self.n_atoms-1)
+
+            m = torch.zeros_like(best_next_probs)
+
+            for j in range(self.n_atoms):
+
+                l = lower[:, j].unsqueeze(1)
+                u = upper[:, j].unsqueeze(1)
+
+                l_part = (best_next_probs[:, j] * (upper[:, j].float() - b[:, j])).unsqueeze(1)
+                u_part = (best_next_probs[:, j] * (b[:, j] - lower[:, j].float())).unsqueeze(1)
+
+                exact_match = (upper[:, j] == lower[:, j]).unsqueeze(1)
+                l_part = torch.where(exact_match, best_next_probs[:, j].unsqueeze(1), l_part)
+                u_part = torch.where(exact_match, torch.zeros_like(u_part), u_part)
+
+                m.scatter_add_(1, l, l_part)
+                m.scatter_add_(1, u, u_part)
+
+        current_probs = self.q_network(states_tensor)
+        actions_expended = actions_tensor.unsqueeze(-1).expand(-1, 1, self.n_atoms)
+        current_action_probs = torch.gather(current_probs, dim=1, index=actions_expended).squeeze(1)
+
+        loss_elementwise = - ( m * torch.log(current_action_probs + 1e-8)).sum(dim=1)
+
+        loss = (loss_elementwise * weights).mean()
 
         self.optimizer.zero_grad(set_to_none=True)
 
@@ -87,7 +122,9 @@ class Agent:
 
         self.soft_update_target_network()
 
-        self.memory.update_priorities(indices, td_errors.squeeze().detach().cpu().numpy())
+        td_errors = loss_elementwise.detach().cpu().numpy() + 1e-5
+
+        self.memory.update_priorities(indices, td_errors)
 
 
     def update(self, state, action, reward, next_state, done):
