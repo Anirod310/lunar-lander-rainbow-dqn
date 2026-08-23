@@ -4,6 +4,7 @@ CONFIG = {
     "state_dim" : 8,
     "action_dim" : 4,
     "hidden_dim" : 128,
+    "n_atoms" : 51,
 
     "learning_rate" : 5e-4,
     "gamma" : 0.99,

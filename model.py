@@ -48,24 +48,36 @@ class NoisyLinear(nn.Module):
 
 
 class Rainbow(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, n_atoms):
         super(Rainbow, self).__init__()
+
+        self.action_dim = output_dim
+        self.n_atoms = n_atoms
+
+        self.register_buffer("Z_tensor", torch.linspace(-200, 200, n_atoms))
+
         self.feature_layer = nn.Sequential(nn.Linear(input_dim, 128),
                                       nn.ReLU())
         self.value_stream = nn.Sequential(NoisyLinear(128, 128),
                                      nn.ReLU(),
-                                     NoisyLinear(128, 1))
+                                     NoisyLinear(128, n_atoms))
         self.advantage_stream = nn.Sequential(NoisyLinear(128, 128),
                                          nn.ReLU(),
-                                         NoisyLinear(128, output_dim))
+                                         NoisyLinear(128, output_dim * n_atoms))
 
     def forward(self, x):
         features = self.feature_layer(x)
         v= self.value_stream(features)
         a = self.advantage_stream(features)
-        q_values = v + (a - torch.mean(a, dim=-1, keepdim=True))
 
-        return q_values
+        batch_size = x.size(0)
+        v = v.view(batch_size, 1, self.n_atoms)
+        a = a.view(batch_size, self.action_dim, self.n_atoms)
+
+        q_values = v + (a - torch.mean(a, dim=1, keepdim=True))
+        probs = F.softmax(q_values, dim=-1)
+
+        return probs
 
     def reset_all_noise(self):
         self.value_stream[0].reset_noise()
