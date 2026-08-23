@@ -7,9 +7,11 @@ import sys
 
 env = gym.make("LunarLander-v3", render_mode="human")
 
-agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"], config=CONFIG)
+agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"], CONFIG["n_atoms"], config=CONFIG)
 
 model = agent.q_network.load_state_dict(torch.load("models/best_weights.pth", weights_only=True))
+
+agent.q_network.eval()
 
 #agent.epsilon = 0.0
 

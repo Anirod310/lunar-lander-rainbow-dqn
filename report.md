@@ -140,3 +140,16 @@ After integrating Noisy Nets and removing the epsilon parameter, the agent solve
 ---
 
 ### VI - Final Step : Implementing Distributional RL (C51)
+
+In this final step, I implemented Distributional RL, which is a new implementation of the action selection and learning process. Instead of predicting only a single scalar average ( which is our $Q(s, a)$ value), the model now has to learn a full probability distribution  $Z(s, a)$, on a fixed support composed of 51 "atoms" (the buckets in which we will add the probabilities). Thus, the model can now "see" more clearly and identifiy differences between scenarios that appeared the same with the simple mean.  
+
+**Key Mechanisms:**
+
+**Architecture and Softmax** : The network now outputs a (4, 51) tensor converted into probabilities with Softmax on the atoms dimension.
+
+**Decision making** : In order to act, the agent calculates the expected value $\mathbb{E}[Z(s, a)] = \sum z_i \cdot p_i(s, a)$ and then selects the action with a classical `argmax` (like before).
+
+**Bellman Operator and Projection** : Shift and contraction of the atoms with limits $[V_{\min}, V_{\max}]$, and linear distribution of the probability of each shifted atom to its two closest discrete neighbours in order to make the target distribution (m) .
+
+**Loss and PER Synergy** : Replacing the MSE with the Cross Entropy Loss, where the transition error is used for the PER SumTree.
+

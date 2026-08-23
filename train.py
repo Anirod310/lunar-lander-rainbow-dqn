@@ -22,13 +22,13 @@ env = gym.make("LunarLander-v3")
 
 set_seed(env, seed=42)
 
-agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"],config=CONFIG)
+agent = Agent(CONFIG["state_dim"], CONFIG["action_dim"],CONFIG["n_atoms"],config=CONFIG)
 
 scores = []
 
 gived = False
 
-best_score = 320.3
+best_score = 323
 
 total_timesteps = 0
 
