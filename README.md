@@ -40,6 +40,12 @@ python evaluate.py
 
 For each part of the project, the config.py file contains the hyperparameters used for training and evaluating the policy. Feel free to modify them and observe how they affect convergence and stability.
 
+You can also play the game yourself using the manual_play file : 
+```bash
+python manual_play.py
+```
+(I found out that the game is super hard in 60 ticks, it's way easier in 20, so feel free to modify ```clock.tick(60)``` to ```clock.tick(20)``` for exemple)
+
 ## Project Structure
 
 The project is organized as follows :
